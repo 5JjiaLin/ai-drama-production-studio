@@ -1,0 +1,5 @@
+{
+  "name": "剧本拆解工具 AI",
+  "description": "专业的剧本拆解工具，利用 Gemini AI 将剧本拆解为人物、道具、场景、分镜表和画面风格。支持 DOCX 导入和 Excel 导出。",
+  "requestFramePermissions": []
+}

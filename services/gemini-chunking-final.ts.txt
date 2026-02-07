@@ -1,0 +1,202 @@
+// 这个文件包含分段生成需要追加到 gemini.ts 末尾的代码
+// 复制以下内容追加到 gemini.ts 文件末尾（在最后一个 }; 之后）
+
+/**
+ * 分段生成分镜表（用于大量分镜需求）
+ * 策略：将总分镜数拆分成多个批次，每批15-20个分镜
+ */
+const generateStoryboardInChunks = async (
+  scriptText: string,
+  basicElements: BasicElementsData | null,
+  minShots: number,
+  maxShots: number,
+  modelName: string,
+  analysisContext: ScriptAnalysis | null,
+  onProgress?: (progress: { current: number; total: number; message: string }) => void
+): Promise<{ shots: StoryboardShot[] }> => {
+
+  const CHUNK_SIZE = 15; // 每批生成15个分镜
+  const targetShots = Math.floor((minShots + maxShots) / 2); // 取中间值
+  const numChunks = Math.ceil(targetShots / CHUNK_SIZE);
+
+  let allShots: StoryboardShot[] = [];
+
+  // 第一步：分析剧本结构
+  if (onProgress) {
+    onProgress({ current: 0, total: numChunks, message: '正在分析剧本结构...' });
+  }
+
+  // 简单分割剧本（按长度均分）
+  const sectionLength = Math.ceil(scriptText.length / numChunks);
+  const scriptSections: string[] = [];
+  for (let i = 0; i < numChunks; i++) {
+    const start = i * sectionLength;
+    const end = Math.min((i + 1) * sectionLength, scriptText.length);
+    scriptSections.push(scriptText.substring(start, end));
+  }
+
+  // 第二步：为每个段落生成分镜
+  for (let i = 0; i < numChunks; i++) {
+    const chunkMin = Math.floor(CHUNK_SIZE * 0.8); // 12
+    const chunkMax = Math.floor(CHUNK_SIZE * 1.2); // 18
+
+    if (onProgress) {
+      onProgress({
+        current: i + 1,
+        total: numChunks,
+        message: `正在生成第 ${i + 1}/${numChunks} 批分镜 (每批约${CHUNK_SIZE}个)...`
+      });
+    }
+
+    try {
+      // 为当前段落生成分镜
+      const chunkResult = await generateStoryboardChunk(
+        scriptSections[i],
+        basicElements,
+        chunkMin,
+        chunkMax,
+        allShots.length + 1, // 起始镜头号
+        modelName,
+        analysisContext,
+        allShots // 前面已生成的分镜（用于衔接）
+      );
+
+      allShots = allShots.concat(chunkResult.shots);
+    } catch (error: any) {
+      console.error(`分段 ${i + 1} 生成失败:`, error);
+      throw new Error(`分段生成在第 ${i + 1}/${numChunks} 批时失败: ${error.message}`);
+    }
+  }
+
+  // 重新编号确保连续性
+  allShots = allShots.map((shot, index) => ({
+    ...shot,
+    shotNumber: index + 1
+  }));
+
+  return { shots: allShots };
+};
+
+/**
+ * 生成单个分镜批次
+ */
+const generateStoryboardChunk = async (
+  sectionText: string,
+  basicElements: BasicElementsData | null,
+  minShots: number,
+  maxShots: number,
+  startShotNumber: number,
+  modelName: string,
+  analysisContext: ScriptAnalysis | null,
+  previousShots: StoryboardShot[]
+): Promise<{ shots: StoryboardShot[] }> => {
+
+  const isClaude = modelName.startsWith('claude');
+  const isOpenAI = modelName.startsWith('gpt-');
+
+  // 构建资产约束
+  let assetConstraints = "";
+  if (basicElements) {
+    const chars = basicElements.characters.map(c => c.name).join(', ');
+    const props = basicElements.props.map(p => p.name).join(', ');
+    const scenes = basicElements.scenes.map(s => s.name).join(', ');
+    assetConstraints = `
+⚠️ **CRITICAL: ASSET MAPPING CONSISTENCY**
+- **Available Characters**: ${chars}
+- **Available Props**: ${props}
+- **Available Scenes**: ${scenes}
+`;
+  }
+
+  // 前文提示（确保衔接合理）
+  let previousContext = "";
+  if (previousShots.length > 0) {
+    const lastFewShots = previousShots.slice(-3); // 取最后3个分镜作为上下文
+    previousContext = `
+## 📌 前文分镜参考（保持连贯性）
+前面已生成 ${previousShots.length} 个分镜。最近的分镜：
+${lastFewShots.map(s => `#${s.shotNumber}: ${s.dialogue}`).join('\n')}
+
+**重要**：
+1. 你的起始镜头号是 ${startShotNumber}，请从这个编号开始
+2. 确保与前文自然衔接，不要突兀转场
+3. 保持情绪和氛围的连贯性
+`;
+  }
+
+  const prompt = `
+# Role: 顶级导演分镜视觉系统 - v13.0 工业资产匿名化版
+
+${analysisContext ? `剧情理解: ${analysisContext.plotSummary}` : ''}
+
+${assetConstraints}
+
+${previousContext}
+
+## 🎯 核心全局协议 (The Iron Rules)
+
+1. **分镜骨架复刻模版（严格遵守）**
+
+   【图片提示词 (Fusion Prompt)】—— 必须严格按照以下五个模块顺序：
+   a. [镜头语言与构图]
+   b. **图一是[主体描述]**：[视觉身份锚点+服装材质细节] + [具体肢体动作姿态] + [五官细节+神情状态+视线落点]
+   c. **图二是[交互描述]**：（若有）[视觉身份锚点+服装材质] + [与图一的方位关系/交互动作] + [神情细节+视线落点]
+   d. [环境背景]：[地理位置] + [具体的建筑/装饰/元素细节] + [远景/氛围细节]
+   e. [画面属性]：[景深参数] + [核心光影类型] + [画质标签/艺术风格]
+
+   【视频提示词 (Motion Prompt)】—— 动态演变格式：
+   [镜头轨迹指令]，动作，[图X的主体动作演变 + **嘴部状态（张合/紧闭）**] + [图Y的表情/反应反馈] + [环境/物理反馈动态]。
+
+2. **🔊 对白与嘴部逻辑**
+   - 对白内容：若文案为角色说出的话 → 必须描述为"**图X嘴唇张合说话**"
+   - 内心独白：若文案为心理活动/系统提示 → 必须描述为"**图X嘴唇紧闭**"
+
+3. **严苛禁令 (Hard Constraints)**
+   - ⛔ 剧情忠实: 严禁脑补剧本中不存在的剧情
+   - ⛔ 禁止人名: Fusion/Motion Prompt 中严禁出现具体名字，必须用"图一"、"图二"
+   - ⛔ 顺序锁死: 图X 必须与 @ 标签顺序完美契合
+   - ⛔ 声画逻辑: 严禁在内心独白时出现张嘴动作
+   - ⛔ 资产上限: 单镜头最多3个资产
+
+## 任务
+为以下剧本片段生成 ${minShots}-${maxShots} 个分镜。
+
+## 分镜要求
+- 起始镜号: ${startShotNumber}
+- 数量范围: ${minShots}-${maxShots} 个
+- 情绪: 快乐、愤怒、悲伤、害怕、厌恶、忧郁、惊讶、平静
+- 强度: 微弱、弱、中等、较强、强烈
+
+## 输出格式（JSON）
+{
+  "shots": [
+    {
+      "shotNumber": ${startShotNumber},
+      "voiceCharacter": "...",
+      "emotion": "...",
+      "intensity": "...",
+      "assets": "@角色 @场景",
+      "dialogue": "...",
+      "fusionPrompt": "...",
+      "motionPrompt": "..."
+    }
+  ]
+}
+
+剧本片段：
+${sectionText}
+`;
+
+  const systemInstruction = "你是顶级导演。严格遵守分镜骨架复刻模版。严禁脑补剧情，必须忠实于剧本原意。输出合法 JSON。";
+
+  let resultText: string;
+  if (isClaude) {
+    resultText = await callClaude(modelName, prompt, systemInstruction, 600000); // 10分钟超时
+  } else if (isOpenAI) {
+    resultText = await callOpenAI(modelName, prompt, systemInstruction, 600000);
+  } else {
+    throw new Error('Gemini 暂不支持分段模式，请使用 Claude 或 GPT 模型');
+  }
+
+  return cleanContent(JSON.parse(cleanJsonOutput(resultText)));
+};
