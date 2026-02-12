@@ -14,12 +14,49 @@ from sqlalchemy.orm import relationship, Session
 Base = declarative_base()
 
 
+class User(Base):
+    """用户模型"""
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), nullable=False, unique=True)
+    email = Column(String(100), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    full_name = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login_at = Column(DateTime)
+
+    # 关系
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserSession(Base):
+    """用户会话模型（JWT黑名单管理）"""
+    __tablename__ = 'user_sessions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    token_jti = Column(String(255), unique=True, nullable=False)
+    ip_address = Column(String(45))
+    user_agent = Column(Text)
+    expires_at = Column(DateTime, nullable=False)
+    is_revoked = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 关系
+    user = relationship("User", back_populates="sessions")
+
+
 class Project(Base):
     """项目模型"""
     __tablename__ = 'projects'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    name = Column(String, nullable=False)
     description = Column(Text)
     status = Column(String, nullable=False, default='ASSET_BUILDING')
     current_snapshot_id = Column(Integer, ForeignKey('asset_snapshots.id'))
@@ -27,6 +64,7 @@ class Project(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关系
+    user = relationship("User", back_populates="projects")
     episodes = relationship("Episode", back_populates="project", cascade="all, delete-orphan")
     assets = relationship("Asset", back_populates="project", cascade="all, delete-orphan")
     snapshots = relationship("AssetSnapshot", back_populates="project", cascade="all, delete-orphan")
@@ -182,6 +220,7 @@ class Storyboard(Base):
     voice_character = Column(String)
     emotion = Column(String)
     intensity = Column(String)
+    asset_mapping = Column(Text)  # 场景角色道具(@MAPPING)
     dialogue = Column(Text)
     fusion_prompt = Column(Text)
     motion_prompt = Column(Text)

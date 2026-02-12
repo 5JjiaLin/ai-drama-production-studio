@@ -81,6 +81,34 @@ class AssetDeduplication:
 
         return name_sim * 0.7 + desc_sim * 0.3
 
+    def is_duplicate_asset(self, new_asset: Dict, existing_assets: List[Dict]) -> bool:
+        """
+        检查新资产是否与现有资产重复
+
+        Args:
+            new_asset: 待检查的新资产
+            existing_assets: 现有资产列表
+
+        Returns:
+            True 如果发现重复，False 否则
+        """
+        if not existing_assets:
+            return False
+
+        new_asset_type = new_asset.get('asset_type')
+
+        # 只与相同类型的资产比较
+        for existing_asset in existing_assets:
+            if existing_asset.get('asset_type') != new_asset_type:
+                continue
+
+            similarity = self.calculate_overall_similarity(new_asset, existing_asset)
+
+            if similarity >= self.similarity_threshold:
+                return True
+
+        return False
+
     def find_duplicates(self, assets: List[Dict]) -> List[Dict]:
         """
         在资产列表中查找可能重复的资产组

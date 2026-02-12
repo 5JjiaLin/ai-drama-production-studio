@@ -10,9 +10,8 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api': {
-            target: 'https://backgrace.com',
+            target: 'http://localhost:5000',
             changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api/, ''),
             secure: false,
           }
         }

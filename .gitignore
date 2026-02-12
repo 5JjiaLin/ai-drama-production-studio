@@ -53,3 +53,24 @@ Desktop.ini
 .vite/
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Backend storage
+backend/storage/
+
+# System files
+nul

@@ -6,6 +6,19 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 获取当前文件所在目录
+BASE_DIR = Path(__file__).resolve().parent
+
+# 加载环境变量 - 明确指定.env文件路径
+env_path = BASE_DIR / '.env'
+load_dotenv(dotenv_path=env_path)
+
+# 调试：打印环境变量加载状态
+print(f"[DEBUG] .env文件路径: {env_path}")
+print(f"[DEBUG] .env文件是否存在: {env_path.exists()}")
+print(f"[DEBUG] DEEPSEEK_API_KEY已加载: {'是' if os.getenv('DEEPSEEK_API_KEY') else '否'}")
 
 # 导入数据库初始化
 from database.init_db import init_database, get_connection
@@ -16,9 +29,43 @@ from services.ai_service import get_ai_service, AIModel
 # 导入去重服务
 from services.deduplication_service import get_deduplication_service
 
+# 导入认证路由
+from routes.auth import auth_bp, token_required
+
+# 导入风格模板路由
+from routes.style_templates import style_templates_bp
+
+# 导入项目管理路由
+from routes.projects import projects_bp
+
+# 导入剧集管理路由
+from routes.episodes import episodes_bp
+
+# 导入分镜管理路由
+from routes.storyboards import storyboards_bp
+
+# 导入资产管理路由
+from routes.assets import assets_bp
+
+# 导入模型配置路由
+from routes.models import models_bp
+
+# 导入管理员路由
+from routes.admin import admin_bp
+
 # 创建Flask应用
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)  # 允许跨域请求
+
+# 注册蓝图
+app.register_blueprint(auth_bp)
+app.register_blueprint(style_templates_bp)
+app.register_blueprint(projects_bp)
+app.register_blueprint(episodes_bp)
+app.register_blueprint(storyboards_bp)
+app.register_blueprint(assets_bp)
+app.register_blueprint(models_bp)
+app.register_blueprint(admin_bp)
 
 # 配置
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -73,8 +120,39 @@ def health_check():
     return success_response({"status": "healthy"})
 
 
+@app.route('/admin.html')
+def admin_page():
+    """管理后台页面"""
+    return app.send_static_file('admin.html')
+
+
+@app.route('/admin-login.html')
+def admin_login_page():
+    """管理员登录页面"""
+    return app.send_static_file('admin-login.html')
+
+
+@app.route('/api/config/check', methods=['GET'])
+def check_config():
+    """检查API密钥配置状态"""
+    # 调试：打印实际的环境变量值
+    deepseek_key = os.getenv('DEEPSEEK_API_KEY')
+    print(f"[DEBUG] check_config - DEEPSEEK_API_KEY: {deepseek_key}")
+    print(f"[DEBUG] check_config - DEEPSEEK_API_KEY type: {type(deepseek_key)}")
+    print(f"[DEBUG] check_config - DEEPSEEK_API_KEY bool: {bool(deepseek_key)}")
+
+    config_status = {
+        "claude_api_key": "已配置" if os.getenv('CLAUDE_API_KEY') else "未配置",
+        "deepseek_api_key": "已配置" if os.getenv('DEEPSEEK_API_KEY') else "未配置",
+        "gemini_api_key": "已配置" if os.getenv('GEMINI_API_KEY') else "未配置",
+        "openai_api_key": "已配置" if os.getenv('OPENAI_API_KEY') else "未配置",
+    }
+    return success_response(config_status)
+
+
 @app.route('/api/projects', methods=['GET'])
-def get_projects():
+@token_required
+def get_projects(current_user_id):
     """获取项目列表"""
     try:
         conn = get_db()
@@ -85,8 +163,9 @@ def get_projects():
                 id, name, description, status,
                 created_at, updated_at
             FROM projects
+            WHERE user_id = ?
             ORDER BY updated_at DESC
-        """)
+        """, (current_user_id,))
 
         projects = []
         for row in cursor.fetchall():
@@ -106,7 +185,8 @@ def get_projects():
 
 
 @app.route('/api/projects', methods=['POST'])
-def create_project():
+@token_required
+def create_project(current_user_id):
     """创建新项目"""
     try:
         data = request.get_json()
@@ -121,9 +201,9 @@ def create_project():
 
         try:
             cursor.execute("""
-                INSERT INTO projects (name, description)
-                VALUES (?, ?)
-            """, (name, description))
+                INSERT INTO projects (user_id, name, description)
+                VALUES (?, ?, ?)
+            """, (current_user_id, name, description))
             conn.commit()
 
             project_id = cursor.lastrowid
@@ -155,17 +235,18 @@ def create_project():
 
 
 @app.route('/api/projects/<int:project_id>', methods=['GET'])
-def get_project(project_id):
+@token_required
+def get_project(current_user_id, project_id):
     """获取项目详情"""
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # 获取项目基本信息
+        # 获取项目基本信息（验证用户权限）
         cursor.execute("""
             SELECT id, name, description, status, created_at, updated_at
-            FROM projects WHERE id = ?
-        """, (project_id,))
+            FROM projects WHERE id = ? AND user_id = ?
+        """, (project_id, current_user_id))
 
         row = cursor.fetchone()
         if not row:
@@ -207,9 +288,18 @@ def get_project(project_id):
 
 
 @app.route('/api/projects/<int:project_id>/episodes', methods=['POST'])
-def upload_episode(project_id):
+@token_required
+def upload_episode(current_user_id, project_id):
     """上传剧集"""
     try:
+        # 验证项目所有权
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM projects WHERE id = ? AND user_id = ?", (project_id, current_user_id))
+        if not cursor.fetchone():
+            conn.close()
+            return error_response("项目不存在或无权访问", 404)
+        conn.close()
         episode_number = request.form.get('episode_number', type=int)
         title = request.form.get('title', '')
         script_content = request.form.get('script_content', '')
@@ -254,11 +344,17 @@ def upload_episode(project_id):
 
 
 @app.route('/api/projects/<int:project_id>/assets', methods=['GET'])
-def get_project_assets(project_id):
+@token_required
+def get_project_assets(current_user_id, project_id):
     """获取项目资产列表"""
     try:
+        # 验证项目所有权
         conn = get_db()
         cursor = conn.cursor()
+        cursor.execute("SELECT id FROM projects WHERE id = ? AND user_id = ?", (project_id, current_user_id))
+        if not cursor.fetchone():
+            conn.close()
+            return error_response("项目不存在或无权访问", 404)
 
         cursor.execute("""
             SELECT
@@ -298,9 +394,23 @@ def get_project_assets(project_id):
 
 
 @app.route('/api/episodes/<int:episode_id>/extract-assets', methods=['POST'])
-def extract_assets_from_episode(episode_id):
+@token_required
+def extract_assets_from_episode(current_user_id, episode_id):
     """从剧集中提取资产（调用AI）"""
     try:
+        # 验证剧集所有权
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT e.id FROM episodes e
+            JOIN projects p ON e.project_id = p.id
+            WHERE e.id = ? AND p.user_id = ?
+        """, (episode_id, current_user_id))
+        if not cursor.fetchone():
+            conn.close()
+            return error_response("剧集不存在或无权访问", 404)
+        conn.close()
+
         data = request.get_json() or {}
         model_name = data.get('model', 'claude')
 
@@ -465,7 +575,8 @@ def extract_assets_from_episode(episode_id):
 
 
 @app.route('/api/projects/<int:project_id>/assets/duplicates', methods=['GET'])
-def detect_duplicate_assets(project_id):
+@token_required
+def detect_duplicate_assets(current_user_id, project_id):
     """检测项目中的重复资产"""
     try:
         # 获取相似度阈值参数
@@ -477,8 +588,8 @@ def detect_duplicate_assets(project_id):
         conn = get_db()
         cursor = conn.cursor()
 
-        # 检查项目是否存在
-        cursor.execute("SELECT id FROM projects WHERE id = ?", (project_id,))
+        # 验证项目所有权
+        cursor.execute("SELECT id FROM projects WHERE id = ? AND user_id = ?", (project_id, current_user_id))
         if not cursor.fetchone():
             conn.close()
             return error_response("项目不存在", 404)
@@ -545,7 +656,8 @@ def detect_duplicate_assets(project_id):
 
 
 @app.route('/api/assets/merge', methods=['POST'])
-def merge_assets():
+@token_required
+def merge_assets(current_user_id):
     """合并资产"""
     try:
         data = request.get_json()
@@ -562,16 +674,18 @@ def merge_assets():
         cursor = conn.cursor()
 
         try:
-            # 检查主资产是否存在
+            # 验证主资产所有权
             cursor.execute("""
-                SELECT id, project_id, name, asset_type
-                FROM assets WHERE id = ? AND is_deleted = 0
-            """, (primary_asset_id,))
+                SELECT a.id, a.project_id, a.name, a.asset_type
+                FROM assets a
+                JOIN projects p ON a.project_id = p.id
+                WHERE a.id = ? AND a.is_deleted = 0 AND p.user_id = ?
+            """, (primary_asset_id, current_user_id))
 
             primary = cursor.fetchone()
             if not primary:
                 conn.close()
-                return error_response("主资产不存在", 404)
+                return error_response("主资产不存在或无权访问", 404)
 
             primary_id, project_id, primary_name, asset_type = primary
 
@@ -650,7 +764,8 @@ def merge_assets():
 
 
 @app.route('/api/projects/<int:project_id>/status', methods=['PUT'])
-def update_project_status(project_id):
+@token_required
+def update_project_status(current_user_id, project_id):
     """
     更新项目状态
 
@@ -671,9 +786,9 @@ def update_project_status(project_id):
         cursor = conn.cursor()
 
         try:
-            # 获取当前项目状态
+            # 验证项目所有权并获取当前状态
             cursor.execute("""
-                SELECT id, name, status FROM projects WHERE id = ?
+                SELECT id, name, status FROM projects WHERE id = ? AND user_id = ?
             """, (project_id,))
 
             project = cursor.fetchone()
@@ -763,14 +878,15 @@ def update_project_status(project_id):
 
 
 @app.route('/api/projects/<int:project_id>/snapshots', methods=['GET'])
-def get_project_snapshots(project_id):
+@token_required
+def get_project_snapshots(current_user_id, project_id):
     """获取项目的资产快照历史"""
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # 检查项目是否存在
-        cursor.execute("SELECT id FROM projects WHERE id = ?", (project_id,))
+        # 验证项目所有权
+        cursor.execute("SELECT id FROM projects WHERE id = ? AND user_id = ?", (project_id, current_user_id))
         if not cursor.fetchone():
             conn.close()
             return error_response("项目不存在", 404)
@@ -807,17 +923,18 @@ def get_project_snapshots(project_id):
 
 
 @app.route('/api/projects/<int:project_id>/statistics', methods=['GET'])
-def get_project_statistics(project_id):
+@token_required
+def get_project_statistics(current_user_id, project_id):
     """获取项目统计信息"""
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # 检查项目是否存在
+        # 验证项目所有权
         cursor.execute("""
             SELECT id, name, status, created_at
-            FROM projects WHERE id = ?
-        """, (project_id,))
+            FROM projects WHERE id = ? AND user_id = ?
+        """, (project_id, current_user_id))
 
         project = cursor.fetchone()
         if not project:

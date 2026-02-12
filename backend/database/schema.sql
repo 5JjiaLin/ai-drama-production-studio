@@ -3,11 +3,51 @@
 -- Created: 2026-02-07
 
 -- ============================================
+-- 0. 用户表 (Users)
+-- ============================================
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    full_name TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_login_at DATETIME
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_active ON users(is_active);
+
+-- ============================================
+-- 0.1 用户会话表 (User Sessions)
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token_jti TEXT UNIQUE NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    expires_at DATETIME NOT NULL,
+    is_revoked BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_sessions_jti ON user_sessions(token_jti);
+CREATE INDEX idx_sessions_expires ON user_sessions(expires_at);
+
+-- ============================================
 -- 1. 项目表 (Projects)
 -- ============================================
 CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
     status TEXT NOT NULL CHECK(status IN (
         'ASSET_BUILDING',      -- 资产拆解阶段
@@ -16,12 +56,16 @@ CREATE TABLE IF NOT EXISTS projects (
         'COMPLETED'            -- 全部完成
     )) DEFAULT 'ASSET_BUILDING',
     current_snapshot_id INTEGER,
+    is_deleted BOOLEAN DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (current_snapshot_id) REFERENCES asset_snapshots(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (current_snapshot_id) REFERENCES asset_snapshots(id),
+    UNIQUE(user_id, name)
 );
 
+CREATE INDEX idx_projects_user ON projects(user_id);
 CREATE INDEX idx_projects_status ON projects(status);
 CREATE INDEX idx_projects_updated_at ON projects(updated_at);
 
@@ -178,6 +222,7 @@ CREATE TABLE IF NOT EXISTS storyboards (
     voice_character TEXT,
     emotion TEXT,
     intensity TEXT,
+    asset_mapping TEXT,  -- 场景角色道具(@MAPPING)，如：@萧云 @黑曜石灵魂 @灵剑宗广场
     dialogue TEXT,
     fusion_prompt TEXT,
     motion_prompt TEXT,
@@ -234,6 +279,38 @@ CREATE TABLE IF NOT EXISTS visual_styles (
 );
 
 CREATE INDEX idx_visual_styles_project ON visual_styles(project_id);
+
+-- ============================================
+-- 10. 风格模板表 (Style Templates)
+-- ============================================
+CREATE TABLE IF NOT EXISTS style_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+
+    -- 风格参数
+    art_style TEXT NOT NULL,           -- 艺术风格（如：写实、动漫、水彩等）
+    color_tone TEXT,                   -- 色调（如：暖色调、冷色调、黑白等）
+    lighting TEXT,                     -- 光照（如：自然光、戏剧性光照等）
+    camera_angle TEXT,                 -- 镜头角度偏好
+    mood TEXT,                         -- 整体氛围
+
+    -- 提示词模板
+    prompt_template TEXT NOT NULL,     -- 用于AI生成的提示词模板
+    negative_prompt TEXT,              -- 负面提示词
+
+    -- 元数据
+    is_public BOOLEAN DEFAULT 0,       -- 是否公开（供其他用户使用）
+    usage_count INTEGER DEFAULT 0,     -- 使用次数
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_style_templates_user ON style_templates(user_id);
+CREATE INDEX idx_style_templates_public ON style_templates(is_public);
 
 -- ============================================
 -- 触发器 (Triggers)
