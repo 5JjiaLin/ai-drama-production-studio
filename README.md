@@ -1,41 +1,57 @@
-# AI 剧本批量拆解工具
+# AI剧本批量拆解工具
 
-一个基于 AI 的剧本自动化分镜工具，支持将剧本智能拆解为专业的分镜脚本。
+一款基于AI的剧本分镜自动化工具，支持资产提取、去重检测和分镜生成。
 
-## 🌟 主要功能
+## ✨ 核心功能
 
-- **深度剧本分析**：AI 深度理解剧情、挖掘细节、分析情绪
-- **基础资产提取**：自动识别角色、道具、场景
-- **智能分镜生成**：自动生成专业级分镜表（支持 50+ 分镜）
-- **视觉风格定义**：生成统一的视觉风格指令
-- **多模型支持**：Claude、DeepSeek、Gemini、GPT 等
+- **资产提取**：AI自动识别剧本中的角色、场景、道具
+- **智能去重**：自动检测并合并重复资产
+- **分镜生成**：根据剧本自动生成专业分镜表
+- **深度剧本分析**：AI深度理解剧情、挖掘细节、分析情绪
+- **多模型支持**：Claude、Gemini、DeepSeek
+- **项目管理**：多项目、多剧集管理
+- **导出功能**：支持CSV导出和表格复制
 
-## 🚀 快速开始
+## 🚀 快速开始（Docker版 - 推荐）
 
-### 安装依赖
+### 前置要求
+- Docker Desktop（Windows/Mac）或 Docker Engine（Linux）
+- 至少4GB内存
+- Claude API Key（必需）
 
+### 3步启动
+
+**Windows用户：**
 ```bash
-npm install
+# 1. 双击运行
+start.bat
+
+# 2. 首次运行会提示配置API Key
+# 3. 等待启动完成，浏览器自动打开
 ```
 
-### 启动开发服务器
-
+**Mac/Linux用户：**
 ```bash
-npm run dev
+# 1. 添加执行权限
+chmod +x start.sh
+
+# 2. 运行启动脚本
+./start.sh
+
+# 3. 按提示配置API Key后重新运行
 ```
 
-访问 http://localhost:3000 或显示的地址
+### 详细文档
+- [Docker使用指南](./DOCKER使用指南.md) - 完整的Docker部署文档
+- [API Key配置指南](./API_KEY配置指南.md) - API Key获取和配置
 
-### 构建生产版本
+## 📖 使用流程
 
-```bash
-npm run build
-npm run preview
-```
+1. **注册账号** → 2. **创建项目** → 3. **提取资产** → 4. **生成分镜** → 5. **导出结果**
 
-## 🤖 支持的 AI 模型
+## 🤖 支持的AI模型
 
-### Claude (Anthropic)
+### Claude (Anthropic) - 推荐
 - Sonnet 4.5 (推荐)
 - Opus 4.5 (最强)
 - Haiku 4.5 (经济)
@@ -48,88 +64,142 @@ npm run preview
 - Gemini 2.5 Flash
 - Gemini 3 Pro High
 
-### GPT (OpenAI)
-- GPT-4o
-- GPT-4o Mini
+## 🛠️ 技术栈
 
-## ⚙️ API 配置
+**前端：**
+- React 18 + TypeScript
+- Vite
+- TailwindCSS
 
-支持以下 API 接入方式：
+**后端：**
+- Python 3.11 + Flask
+- SQLite
+- Anthropic Claude API
 
-1. **代理模式**：使用第三方 API 服务
-2. **官方 API**：
-   - Anthropic 官方 API
-   - DeepSeek 官方 API
-   - Google 官方 API
-   - OpenAI 官方 API
+**部署：**
+- Docker + Docker Compose
+- Nginx
 
-### API Key 配置
+## 📦 本地开发
 
-方式一：在界面顶部直接输入 API Key
+<details>
+<summary>点击展开本地开发指南</summary>
 
-方式二：在项目根目录创建 `apikey.txt` 文件（会自动加载）
+### 后端启动
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
 
-## 📊 性能优化
+### 前端启动
+```bash
+npm install
+npm run dev
+```
 
-- **上下文长度**：支持 50 万字符剧本
-- **输出 Token**：最高 65536 tokens
-- **超时时间**：最长 15 分钟
-- **智能分段**：超过 50 个分镜自动分段生成
-- **批次大小**：每批 30-50 个分镜
+### 环境变量
+复制 `.env.example` 为 `.env` 并填写API Key。
+
+</details>
+
+## 🔧 常用命令
+
+```bash
+# 启动服务
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+```
+
+## 📊 系统架构
+
+```
+┌─────────────┐      ┌─────────────┐      ┌─────────────┐
+│   浏览器    │ ───> │   Nginx     │ ───> │   Flask     │
+│  (React)    │ <─── │  (前端)     │ <─── │   (后端)    │
+└─────────────┘      └─────────────┘      └─────────────┘
+                                                  │
+                                                  ▼
+                                           ┌─────────────┐
+                                           │   SQLite    │
+                                           │  (数据库)   │
+                                           └─────────────┘
+                                                  │
+                                                  ▼
+                                           ┌─────────────┐
+                                           │ Claude API  │
+                                           │  (AI服务)   │
+                                           └─────────────┘
+```
 
 ## 📁 项目结构
 
 ```
-├── App.tsx                    # 主应用组件
-├── components/                # UI 组件
-│   ├── Button.tsx
-│   ├── DataTable.tsx
-│   ├── FeedbackInput.tsx
-│   └── StepIndicator.tsx
-├── services/                  # 服务层
-│   ├── gemini.ts             # AI 调用服务
-│   ├── gemini-chunking.ts    # 分段生成逻辑
-│   ├── apiConfig.ts          # API 配置
-│   └── fileUtils.ts          # 文件处理
-├── types.ts                   # TypeScript 类型定义
-└── index.html                # HTML 入口
-
+├── backend/                   # 后端服务
+│   ├── app.py                # Flask应用入口
+│   ├── routes/               # API路由
+│   ├── services/             # 业务逻辑
+│   ├── database/             # 数据库模型
+│   └── Dockerfile            # 后端Docker配置
+├── components/               # React组件
+│   ├── AuthForm.tsx          # 认证表单
+│   ├── ProjectList.tsx       # 项目列表
+│   ├── AssetExtraction.tsx   # 资产提取
+│   └── StoryboardGeneration.tsx  # 分镜生成
+├── services/                 # 前端服务层
+│   ├── authService.ts        # 认证服务
+│   ├── projectService.ts     # 项目服务
+│   └── storyboardService.ts  # 分镜服务
+├── docker-compose.yml        # Docker编排配置
+├── Dockerfile                # 前端Docker配置
+├── nginx.conf                # Nginx配置
+└── README.md                 # 项目文档
 ```
 
-## 📖 使用文档
+## 🔒 安全说明
 
-- [DeepSeek 使用说明](./DEEPSEEK使用说明.md)
-
-## 🔧 技术栈
-
-- **前端框架**：React 19
-- **构建工具**：Vite
-- **样式**：Tailwind CSS
-- **语言**：TypeScript
-- **AI SDK**：Google Generative AI SDK
-
-## ⚠️ 注意事项
-
-1. **API Key 安全**：不要将 API Key 提交到版本控制系统
-2. **网络要求**：需要稳定的网络连接访问 AI API
-3. **分镜数量**：建议单批次不超过 50 个分镜
-4. **文件格式**：支持 .docx 和 .txt 格式的剧本文件
+- ⚠️ 不要将 `.env` 文件提交到Git
+- ⚠️ 不要在公网暴露服务（仅本地使用）
+- ⚠️ 定期更换API Key
+- ⚠️ 使用强密码注册账号
 
 ## 📝 更新日志
 
-### v1.0.0 (2026-02-07)
+### v2.0 (2026-02-12)
+- ✅ 添加Docker支持，一键部署
+- ✅ 完善分镜生成功能
+- ✅ 优化AI提示词（强化剧情忠实原则）
+- ✅ 修复项目管理bug（重复项目名、删除功能）
+- ✅ 添加asset_mapping字段支持
+- ✅ 完善用户认证系统
+- ✅ 添加完整的后端API
 
-- ✅ 完整的剧本拆解流程
-- ✅ 多模型支持（Claude、DeepSeek、Gemini、GPT）
+### v1.0 (2026-02-07)
+- ✅ 基础功能实现
+- ✅ 多模型支持
 - ✅ 智能分段生成
-- ✅ 深度剧本分析
-- ✅ JSON 格式优化
-- ✅ DeepSeek 官方 API 支持
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request。
 
 ## 📄 许可证
 
 MIT License
 
-## 🤝 贡献
+## 📞 联系方式
 
-欢迎提交 Issue 和 Pull Request！
+- GitHub: [项目地址](https://github.com/5JjiaLin/01)
+- Issues: [问题反馈](https://github.com/5JjiaLin/01/issues)
+
+---
+
+**Made with ❤️ by AI Script Team**
