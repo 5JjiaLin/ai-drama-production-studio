@@ -23,22 +23,10 @@
         }
       }
     </script>
-    <!-- Load mammoth for docx parsing from CDN if node module is missing in runtime -->
+    <!-- Browser-only document helpers. Model credentials never enter this bundle. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <!-- Load xlsx for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.38.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>

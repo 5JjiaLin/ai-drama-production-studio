@@ -3,7 +3,7 @@
  * 处理用户登录、注册、token管理
  */
 
-const API_BASE_URL = 'http://127.0.0.1:5000/api';
+const API_BASE_URL = '/api';
 
 interface LoginResponse {
   success: boolean;

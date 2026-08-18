@@ -17,9 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
     last_login_at DATETIME
 );
 
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 
 -- ============================================
 -- 0.1 用户会话表 (User Sessions)
@@ -37,9 +37,9 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_sessions_user ON user_sessions(user_id);
-CREATE INDEX idx_sessions_jti ON user_sessions(token_jti);
-CREATE INDEX idx_sessions_expires ON user_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_jti ON user_sessions(token_jti);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON user_sessions(expires_at);
 
 -- ============================================
 -- 1. 项目表 (Projects)
@@ -65,9 +65,9 @@ CREATE TABLE IF NOT EXISTS projects (
     UNIQUE(user_id, name)
 );
 
-CREATE INDEX idx_projects_user ON projects(user_id);
-CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_projects_updated_at ON projects(updated_at);
+CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_updated_at ON projects(updated_at);
 
 -- ============================================
 -- 2. 剧集表 (Episodes) - 按集上传
@@ -91,8 +91,8 @@ CREATE TABLE IF NOT EXISTS episodes (
     UNIQUE(project_id, episode_number)
 );
 
-CREATE INDEX idx_episodes_project ON episodes(project_id);
-CREATE INDEX idx_episodes_number ON episodes(project_id, episode_number);
+CREATE INDEX IF NOT EXISTS idx_episodes_project ON episodes(project_id);
+CREATE INDEX IF NOT EXISTS idx_episodes_number ON episodes(project_id, episode_number);
 
 -- ============================================
 -- 3. 资产主表 (Assets)
@@ -126,10 +126,10 @@ CREATE TABLE IF NOT EXISTS assets (
     FOREIGN KEY (first_appeared_episode_id) REFERENCES episodes(id)
 );
 
-CREATE INDEX idx_assets_project_type ON assets(project_id, asset_type);
-CREATE INDEX idx_assets_name ON assets(project_id, name);
-CREATE INDEX idx_assets_deleted ON assets(is_deleted);
-CREATE INDEX idx_assets_merged ON assets(merged_into_asset_id);
+CREATE INDEX IF NOT EXISTS idx_assets_project_type ON assets(project_id, asset_type);
+CREATE INDEX IF NOT EXISTS idx_assets_name ON assets(project_id, name);
+CREATE INDEX IF NOT EXISTS idx_assets_deleted ON assets(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_assets_merged ON assets(merged_into_asset_id);
 
 -- ============================================
 -- 4. 资产提取记录 (Asset Extraction Records)
@@ -169,9 +169,9 @@ CREATE TABLE IF NOT EXISTS asset_extraction_records (
     FOREIGN KEY (suggested_merge_asset_id) REFERENCES assets(id)
 );
 
-CREATE INDEX idx_extraction_episode ON asset_extraction_records(episode_id);
-CREATE INDEX idx_extraction_status ON asset_extraction_records(dedup_status);
-CREATE INDEX idx_extraction_asset ON asset_extraction_records(asset_id);
+CREATE INDEX IF NOT EXISTS idx_extraction_episode ON asset_extraction_records(episode_id);
+CREATE INDEX IF NOT EXISTS idx_extraction_status ON asset_extraction_records(dedup_status);
+CREATE INDEX IF NOT EXISTS idx_extraction_asset ON asset_extraction_records(asset_id);
 
 -- ============================================
 -- 5. 资产合并历史 (Asset Merge History)
@@ -189,8 +189,8 @@ CREATE TABLE IF NOT EXISTS asset_merge_history (
     FOREIGN KEY (target_asset_id) REFERENCES assets(id)
 );
 
-CREATE INDEX idx_merge_history_source ON asset_merge_history(source_asset_id);
-CREATE INDEX idx_merge_history_target ON asset_merge_history(target_asset_id);
+CREATE INDEX IF NOT EXISTS idx_merge_history_source ON asset_merge_history(source_asset_id);
+CREATE INDEX IF NOT EXISTS idx_merge_history_target ON asset_merge_history(target_asset_id);
 
 -- ============================================
 -- 6. 资产库快照 (Asset Snapshots)
@@ -207,8 +207,8 @@ CREATE TABLE IF NOT EXISTS asset_snapshots (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_snapshots_project ON asset_snapshots(project_id);
-CREATE INDEX idx_snapshots_active ON asset_snapshots(project_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_snapshots_project ON asset_snapshots(project_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_active ON asset_snapshots(project_id, is_active);
 
 -- ============================================
 -- 7. 分镜表 (Storyboards)
@@ -241,8 +241,8 @@ CREATE TABLE IF NOT EXISTS storyboards (
     UNIQUE(episode_id, shot_number)
 );
 
-CREATE INDEX idx_storyboards_episode ON storyboards(episode_id);
-CREATE INDEX idx_storyboards_snapshot ON storyboards(snapshot_id);
+CREATE INDEX IF NOT EXISTS idx_storyboards_episode ON storyboards(episode_id);
+CREATE INDEX IF NOT EXISTS idx_storyboards_snapshot ON storyboards(snapshot_id);
 
 -- ============================================
 -- 8. 分镜-资产关联表 (Storyboard Asset References)
@@ -261,8 +261,8 @@ CREATE TABLE IF NOT EXISTS storyboard_asset_references (
     UNIQUE(storyboard_id, asset_id)
 );
 
-CREATE INDEX idx_storyboard_refs_storyboard ON storyboard_asset_references(storyboard_id);
-CREATE INDEX idx_storyboard_refs_asset ON storyboard_asset_references(asset_id);
+CREATE INDEX IF NOT EXISTS idx_storyboard_refs_storyboard ON storyboard_asset_references(storyboard_id);
+CREATE INDEX IF NOT EXISTS idx_storyboard_refs_asset ON storyboard_asset_references(asset_id);
 
 -- ============================================
 -- 9. 视觉风格表 (Visual Styles)
@@ -278,7 +278,7 @@ CREATE TABLE IF NOT EXISTS visual_styles (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_visual_styles_project ON visual_styles(project_id);
+CREATE INDEX IF NOT EXISTS idx_visual_styles_project ON visual_styles(project_id);
 
 -- ============================================
 -- 10. 风格模板表 (Style Templates)
@@ -309,8 +309,8 @@ CREATE TABLE IF NOT EXISTS style_templates (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_style_templates_user ON style_templates(user_id);
-CREATE INDEX idx_style_templates_public ON style_templates(is_public);
+CREATE INDEX IF NOT EXISTS idx_style_templates_user ON style_templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_style_templates_public ON style_templates(is_public);
 
 -- ============================================
 -- 触发器 (Triggers)
