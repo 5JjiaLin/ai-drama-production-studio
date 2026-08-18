@@ -15,11 +15,6 @@ BASE_DIR = Path(__file__).resolve().parent
 env_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=env_path)
 
-# 调试：打印环境变量加载状态
-print(f"[DEBUG] .env文件路径: {env_path}")
-print(f"[DEBUG] .env文件是否存在: {env_path.exists()}")
-print(f"[DEBUG] DEEPSEEK_API_KEY已加载: {'是' if os.getenv('DEEPSEEK_API_KEY') else '否'}")
-
 # 导入数据库初始化
 from database.init_db import init_database, get_connection
 
@@ -69,7 +64,7 @@ app.register_blueprint(admin_bp)
 
 # 配置
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['STORAGE_PATH'] = 'storage/projects'
+app.config['STORAGE_PATH'] = str(BASE_DIR / 'storage' / 'projects')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB最大上传
 
 # 确保存储目录存在
@@ -135,12 +130,6 @@ def admin_login_page():
 @app.route('/api/config/check', methods=['GET'])
 def check_config():
     """检查API密钥配置状态"""
-    # 调试：打印实际的环境变量值
-    deepseek_key = os.getenv('DEEPSEEK_API_KEY')
-    print(f"[DEBUG] check_config - DEEPSEEK_API_KEY: {deepseek_key}")
-    print(f"[DEBUG] check_config - DEEPSEEK_API_KEY type: {type(deepseek_key)}")
-    print(f"[DEBUG] check_config - DEEPSEEK_API_KEY bool: {bool(deepseek_key)}")
-
     config_status = {
         "claude_api_key": "已配置" if os.getenv('CLAUDE_API_KEY') else "未配置",
         "deepseek_api_key": "已配置" if os.getenv('DEEPSEEK_API_KEY') else "未配置",

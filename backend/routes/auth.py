@@ -18,7 +18,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 # JWT配置（后续从app.config获取）
-JWT_SECRET_KEY = 'dev-secret-key-change-in-production'
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
 
@@ -49,13 +48,13 @@ def generate_token(user_id, token_type='access'):
         'exp': datetime.utcnow() + expires,
         'iat': datetime.utcnow()
     }
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
+    return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
 
 
 def decode_token(token):
     """解码JWT token"""
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
         return payload, None
     except jwt.ExpiredSignatureError:
         return None, "Token已过期"
@@ -321,4 +320,3 @@ def refresh_token():
             'access_token': new_access_token
         }
     }), 200
-

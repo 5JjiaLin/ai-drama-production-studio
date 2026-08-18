@@ -1,205 +1,93 @@
-# AI剧本批量拆解工具
+<div align="center">
 
-一款基于AI的剧本分镜自动化工具，支持资产提取、去重检测和分镜生成。
+# AI Drama Production Studio
 
-## ✨ 核心功能
+**把分集剧本整理成可追踪的角色、场景、道具与分镜生产资料。**
 
-- **资产提取**：AI自动识别剧本中的角色、场景、道具
-- **智能去重**：自动检测并合并重复资产
-- **分镜生成**：根据剧本自动生成专业分镜表
-- **深度剧本分析**：AI深度理解剧情、挖掘细节、分析情绪
-- **多模型支持**：Claude、Gemini、DeepSeek
-- **项目管理**：多项目、多剧集管理
-- **导出功能**：支持CSV导出和表格复制
+[Quick Start](#quick-start) · [Workflow](#workflow) · [Architecture](#architecture) · [Security](#security-boundary)
 
-## 🚀 快速开始（Docker版 - 推荐）
+</div>
 
-### 前置要求
-- Docker Desktop（Windows/Mac）或 Docker Engine（Linux）
-- 至少4GB内存
-- Claude API Key（必需）
+![AI Drama Production Studio workspace](docs/assets/workspace.png)
 
-### 3步启动
+## Why this project
 
-**Windows用户：**
-```bash
-# 1. 双击运行
-start.bat
+短剧和 AI 动画制作常常把人物设定、场景、道具和分镜散落在多个文档里。这个项目把它们放进同一个项目工作区：先建立资产库，再以锁定的资产为约束生成分镜，减少跨集角色和场景漂移。
 
-# 2. 首次运行会提示配置API Key
-# 3. 等待启动完成，浏览器自动打开
-```
+## Workflow
 
-**Mac/Linux用户：**
-```bash
-# 1. 添加执行权限
-chmod +x start.sh
+1. 创建项目并按集导入 DOCX 或剧本文本。
+2. 使用选定的模型提取角色、场景和道具。
+3. 检查相似资产，人工确认合并并锁定资产库。
+4. 按镜头数量、时长和视觉风格生成分镜。
+5. 在表格中修订结果，导出 CSV/Excel 或复制到后续生产流程。
 
-# 2. 运行启动脚本
-./start.sh
+## What is implemented
 
-# 3. 按提示配置API Key后重新运行
-```
+- 多项目、多剧集管理和用户认证
+- Claude、DeepSeek、Gemini、OpenAI 兼容模型适配
+- 角色、场景、道具提取与相似资产合并
+- 分镜生成、编辑、删除、复制和 CSV 导出
+- 资产快照、分镜引用关系与管理后台
+- Docker Compose 本地部署
 
-### 详细文档
-- [Docker使用指南](./DOCKER使用指南.md) - 完整的Docker部署文档
-- [API Key配置指南](./API_KEY配置指南.md) - API Key获取和配置
+## Quick Start
 
-## 📖 使用流程
-
-1. **注册账号** → 2. **创建项目** → 3. **提取资产** → 4. **生成分镜** → 5. **导出结果**
-
-## 🤖 支持的AI模型
-
-### Claude (Anthropic) - 推荐
-- Sonnet 4.5 (推荐)
-- Opus 4.5 (最强)
-- Haiku 4.5 (经济)
-
-### DeepSeek (深度求索)
-- DeepSeek V3 (推荐)
-- DeepSeek R1 (推理模型)
-
-### Gemini (Google)
-- Gemini 2.5 Flash
-- Gemini 3 Pro High
-
-## 🛠️ 技术栈
-
-**前端：**
-- React 18 + TypeScript
-- Vite
-- TailwindCSS
-
-**后端：**
-- Python 3.11 + Flask
-- SQLite
-- Anthropic Claude API
-
-**部署：**
-- Docker + Docker Compose
-- Nginx
-
-## 📦 本地开发
-
-<details>
-<summary>点击展开本地开发指南</summary>
-
-### 后端启动
-```bash
-cd backend
-pip install -r requirements.txt
-python app.py
-```
-
-### 前端启动
-```bash
-npm install
-npm run dev
-```
-
-### 环境变量
-复制 `.env.example` 为 `.env` 并填写API Key。
-
-</details>
-
-## 🔧 常用命令
+Requirements: Docker Desktop, at least one supported model API key, and 4 GB of free memory.
 
 ```bash
-# 启动服务
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
-
-# 停止服务
-docker-compose down
-
-# 重启服务
-docker-compose restart
+git clone https://github.com/5JjiaLin/ai-drama-production-studio.git
+cd ai-drama-production-studio
+cp .env.example .env
+# Edit .env and set at least one provider key plus a new SECRET_KEY.
+docker compose up --build
 ```
 
-## 📊 系统架构
+Open `http://localhost:3000`. Create an administrator interactively when needed:
 
-```
-┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│   浏览器    │ ───> │   Nginx     │ ───> │   Flask     │
-│  (React)    │ <─── │  (前端)     │ <─── │   (后端)    │
-└─────────────┘      └─────────────┘      └─────────────┘
-                                                  │
-                                                  ▼
-                                           ┌─────────────┐
-                                           │   SQLite    │
-                                           │  (数据库)   │
-                                           └─────────────┘
-                                                  │
-                                                  ▼
-                                           ┌─────────────┐
-                                           │ Claude API  │
-                                           │  (AI服务)   │
-                                           └─────────────┘
+```bash
+docker compose exec backend python create_admin.py
 ```
 
-## 📁 项目结构
+For non-Docker development and provider configuration, see [Docker setup](docs/setup/docker.md) and [API key setup](docs/setup/api-keys.md).
 
-```
-├── backend/                   # 后端服务
-│   ├── app.py                # Flask应用入口
-│   ├── routes/               # API路由
-│   ├── services/             # 业务逻辑
-│   ├── database/             # 数据库模型
-│   └── Dockerfile            # 后端Docker配置
-├── components/               # React组件
-│   ├── AuthForm.tsx          # 认证表单
-│   ├── ProjectList.tsx       # 项目列表
-│   ├── AssetExtraction.tsx   # 资产提取
-│   └── StoryboardGeneration.tsx  # 分镜生成
-├── services/                 # 前端服务层
-│   ├── authService.ts        # 认证服务
-│   ├── projectService.ts     # 项目服务
-│   └── storyboardService.ts  # 分镜服务
-├── docker-compose.yml        # Docker编排配置
-├── Dockerfile                # 前端Docker配置
-├── nginx.conf                # Nginx配置
-└── README.md                 # 项目文档
+## Architecture
+
+```text
+React + TypeScript ── /api/* ──> Flask API ──> SQLite
+                                      │
+                                      └──> AI provider adapters
 ```
 
-## 🔒 安全说明
+The browser never receives model-provider credentials. Vite proxies `/api` during development; Nginx proxies the same path in the production container.
 
-- ⚠️ 不要将 `.env` 文件提交到Git
-- ⚠️ 不要在公网暴露服务（仅本地使用）
-- ⚠️ 定期更换API Key
-- ⚠️ 使用强密码注册账号
+## Verification
 
-## 📝 更新日志
+```bash
+npm ci
+npm run build
 
-### v2.0 (2026-02-12)
-- ✅ 添加Docker支持，一键部署
-- ✅ 完善分镜生成功能
-- ✅ 优化AI提示词（强化剧情忠实原则）
-- ✅ 修复项目管理bug（重复项目名、删除功能）
-- ✅ 添加asset_mapping字段支持
-- ✅ 完善用户认证系统
-- ✅ 添加完整的后端API
+python3 -m pip install -r backend/requirements.txt
+(cd backend && python3 -m unittest discover tests)
+```
 
-### v1.0 (2026-02-07)
-- ✅ 基础功能实现
-- ✅ 多模型支持
-- ✅ 智能分段生成
+## Security boundary
 
-## 🤝 贡献
+- Provider keys and `SECRET_KEY` belong only in the backend `.env` file.
+- There is no default administrator account or hard-coded password.
+- The included setup is intended for local or access-controlled deployment. Add TLS, rate limits and production identity controls before exposing it to the internet.
+- Generated scripts and model outputs require human review before production use.
 
-欢迎提交Issue和Pull Request。
+## Repository layout
 
-## 📄 许可证
+```text
+components/       React workflow and editing UI
+services/         Browser API clients and export helpers
+backend/          Flask API, provider adapters and SQLite models
+docs/setup/       Deployment and provider setup
+.github/workflows Continuous build and backend smoke tests
+```
 
-MIT License
+## License
 
-## 📞 联系方式
-
-- GitHub: [项目地址](https://github.com/5JjiaLin/01)
-- Issues: [问题反馈](https://github.com/5JjiaLin/01/issues)
-
----
-
-**Made with ❤️ by AI Script Team**
+Source code is available under the [MIT License](LICENSE). Product screenshots and other visual assets are covered by [ASSET_LICENSE.md](ASSET_LICENSE.md).
